@@ -28,8 +28,7 @@ RUN set -eux; \
 	apt-get install -y \
 		exim4-daemon-light \
 	; \
-	rm -rf /var/lib/apt/lists/*; \
-	ln -svfT /etc/hostname /etc/mailname
+	rm -rf /var/lib/apt/lists/*
 
 # https://blog.dhampir.no/content/exim4-line-length-in-debian-stretch-mail-delivery-failed-returning-message-to-sender
 # https://serverfault.com/a/881197
@@ -39,13 +38,23 @@ RUN echo "IGNORE_SMTP_LINE_LENGTH_LIMIT='true'" >> /etc/exim4/update-exim4.conf.
 RUN set -eux; \
 	mkdir -p /var/spool/exim4 /var/log/exim4; \
 	chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4
+
 VOLUME ["/var/spool/exim4", "/var/log/exim4"]
 
-# COPY set-exim4-update-conf docker-entrypoint.sh /usr/local/bin/
-COPY docker-entrypoint.sh /usr/local/bin/
 COPY update-exim4.conf.conf hubbed_hosts /etc/exim4/
+
+# Use authentication when connecting to mail hosts listed
+# in /etc/exim4/hubbed_hosts
+RUN set -eux; \
+    sed -i '/^ *transport/ s/remote_smtp$/remote_smtp_smarthost/' \
+            /etc/exim4/conf.d/router/150_exim4-config_hubbed_hosts; \
+    update-exim4.conf -v
+
+ENV ETC_MAILNAME smtp.dairiki.org
+
+COPY docker-entrypoint.sh /usr/local/bin/
 
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 EXPOSE 25
-CMD ["exim", "-bd", "-v"]
+CMD ["exim", "-bd", "-q10m", "-v"]

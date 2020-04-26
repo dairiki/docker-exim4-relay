@@ -2,27 +2,18 @@
 set -e
 
 if [ "$1" = 'exim' ]; then
-    if [ -n "$MAILNAME" ]
+    if [ -n "$ETC_MAILNAME" ]
     then
-        rm /etc/mailname
-        echo "$MAILNAME" > /etc/mailname
+        echo "$ETC_MAILNAME" > /etc/mailname
     fi
 
-    for line in $PASSWD_CLIENT
-    do
-        echo "$line" >> /etc/exim4/passwd.client
-    done
-
-    # Use authentication when connecting to mail hosts listed
-    # in /etc/exim4/hubbed_hosts
-    sed -i '/^ *transport/ s/remote_smtp$/remote_smtp_smarthost/' \
-        /etc/exim4/conf.d/router/150_exim4-config_hubbed_hosts
-
-    update-exim4.conf -v
+    # update-exim4.conf -v
 
     if [ "$(id -u)" = '0' ]; then
         mkdir -p /var/spool/exim4 /var/log/exim4 || :
         chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4 || :
+        chown -R root:Debian-exim /etc/exim4/passwd.client || :
+        chmod 0640 /etc/exim4/passwd.client || :
     fi
 
     set -- tini -- "$@"
