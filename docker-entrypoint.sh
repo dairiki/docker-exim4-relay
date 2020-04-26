@@ -2,33 +2,30 @@
 set -e
 
 if [ "$1" = 'exim' ]; then
-	opts=(
-		dc_local_interfaces '0.0.0.0 ; ::0'
-		dc_other_hostnames ''
-		dc_relay_nets '0.0.0.0/0'
-	)
+    if [ -n "$MAILNAME" ]
+    then
+        rm /etc/mailname
+        echo "$MAILNAME" > /etc/mailname
+    fi
 
-	if [ "$GMAIL_USER" -a "$GMAIL_PASSWORD" ]; then
-		# see https://wiki.debian.org/GmailAndExim4
-		opts+=(
-			dc_eximconfig_configtype 'smarthost'
-			dc_smarthost 'smtp.gmail.com::587'
-		)
-		echo "smtp.gmail.com:$GMAIL_USER:$GMAIL_PASSWORD" > /etc/exim4/passwd.client
-	else
-		opts+=(
-			dc_eximconfig_configtype 'internet'
-		)
-	fi
+    for line in $PASSWD_CLIENT
+    do
+        echo "$line" >> /etc/exim4/passwd.client
+    done
 
-	set-exim4-update-conf "${opts[@]}"
+    # Use authentication when connecting to mail hosts listed
+    # in /etc/exim4/hubbed_hosts
+    sed -i '/^ *transport/ s/remote_smtp$/remote_smtp_smarthost/' \
+        /etc/exim4/conf.d/router/150_exim4-config_hubbed_hosts
 
-	if [ "$(id -u)" = '0' ]; then
-		mkdir -p /var/spool/exim4 /var/log/exim4 || :
-		chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4 || :
-	fi
+    update-exim4.conf -v
 
-	set -- tini -- "$@"
+    if [ "$(id -u)" = '0' ]; then
+        mkdir -p /var/spool/exim4 /var/log/exim4 || :
+        chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4 || :
+    fi
+
+    set -- tini -- "$@"
 fi
 
 exec "$@"

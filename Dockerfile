@@ -41,7 +41,10 @@ RUN set -eux; \
 	chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4
 VOLUME ["/var/spool/exim4", "/var/log/exim4"]
 
-COPY set-exim4-update-conf docker-entrypoint.sh /usr/local/bin/
+# COPY set-exim4-update-conf docker-entrypoint.sh /usr/local/bin/
+COPY docker-entrypoint.sh /usr/local/bin/
+COPY update-exim4.conf.conf hubbed_hosts /etc/exim4/
+
 ENTRYPOINT ["docker-entrypoint.sh"]
 
 EXPOSE 25
