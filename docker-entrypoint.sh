@@ -15,8 +15,6 @@ if [ "$1" = 'exim' ]; then
         chown -R root:Debian-exim /etc/exim4/passwd.client || :
         chmod 0640 /etc/exim4/passwd.client || :
     fi
-
-    set -- tini -- "$@"
 fi
 
 exec "$@"
