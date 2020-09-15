@@ -3,6 +3,7 @@ LABEL maintainer="dairiki@dairiki.org"
 
 ENV ETC_MAILNAME smtp.dairiki.org
 ENV RELAY_NETS   172.16.0.0/12;192.168.0.0/16;10.0.0.0/8;fd00::/8
+ENV GLOBAL_RCPT_RATELIMIT 100/1h
 
 # NB: scripts such as exiqgrep require perl-modules.
 # I've added it here.  Remove it if you don't need the scripts to work.
