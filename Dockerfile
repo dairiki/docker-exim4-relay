@@ -2,10 +2,14 @@ FROM debian:buster-slim
 
 ENV ETC_MAILNAME smtp.dairiki.org
 
+# NB: scripts such as exiqgrep require perl-modules.
+# I've added it here.  Remove it if you don't need the scripts to work.
+#
 RUN set -eux; \
 	apt-get update; \
 	apt-get install -y --no-install-recommends \
 		exim4-daemon-light \
+		perl-modules \
 	; \
 	apt-get clean; \
 	rm -rf /var/lib/apt/lists/*; \
