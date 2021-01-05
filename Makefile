@@ -8,16 +8,19 @@ BUILD_LABELS	= \
 
 SUDO	= sudo
 DOCKER	= $(SUDO) docker
+COMPOSE	= $(SUDO) docker-compose
 
 VCS_REF := $(shell git rev-parse --short HEAD)$(shell git diff --quiet || echo "-dirty")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
+export VERSION VCS_REF BUILD_DATE
+
 .PHONY: build assert-clean
 
 build:
-	$(DOCKER) build $(BUILD_NC) ${BUILD_LABELS} -t $(APP_NAME) .
+	$(COMPOSE) build $(BUILD_NC)
 
-publish: BUILD_NC = --no-cache
+publish: BUILD_NC = --no-cache --pull
 
 .PHONY: publish tag tag-latest tag-version assert-clean
 

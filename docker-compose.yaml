@@ -1,0 +1,26 @@
+---
+# Use version 2 since version 3 does not support very rich network
+# configuration
+version: "2.4"
+
+services:
+  exim4:
+    image: exim4-relay
+    build:
+      context: .
+      labels:
+        org.label-schema.version: ${VERSION}
+        org.label-schema.build-date: ${BUILD_DATE}
+        org.label-schema.vcs-ref: ${VCS_REF}
+    volumes:
+      - spool:/var/spool/exim4
+    environment:
+      - ETC_MAILNAME=smtp.dairiki.org
+      - RELAY_NETS=172.16.0.0/12
+      - GLOBAL_RCPT_RATELIMIT=100/1h
+      - TZ=${TZ:-America/Los_Angeles}
+    ports:
+      - "127.0.0.1:25:25"
+
+volumes:
+  spool:
