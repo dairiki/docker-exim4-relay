@@ -1,4 +1,4 @@
-FROM debian:buster-slim
+FROM debian:buster-20201209-slim
 
 LABEL org.label-schema.name="exim4-relay"
 LABEL org.label-schema.vcs-url="https://git.dairiki.org/config/synology/"
