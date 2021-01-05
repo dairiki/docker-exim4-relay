@@ -1,0 +1,11 @@
+# /etc/exim4/conf.d/main/00_local_macros
+#
+# Do not enforce line-length restrictions.
+#
+# See:
+#
+# https://blog.dhampir.no/content/exim4-line-length-in-debian-stretch-mail-delivery-failed-returning-message-to-sender
+# https://serverfault.com/a/881197
+# https://bugs.debian.org/828801
+
+IGNORE_SMTP_LINE_LENGTH_LIMIT = true

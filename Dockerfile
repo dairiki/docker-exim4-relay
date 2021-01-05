@@ -23,6 +23,8 @@ RUN set -eux && \
   mkdir -p /var/spool/exim4 /var/log/exim4 && \
   chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4
 
+COPY etc /etc
+
 VOLUME /var/spool/exim4
 
 EXPOSE 25/tcp
