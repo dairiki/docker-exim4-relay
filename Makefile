@@ -1,5 +1,5 @@
 APP_NAME	= exim4-relay
-VERSION		= 0.3
+VERSION		= 0.3.1
 DOCKER_REPO	= dairiki
 BUILD_LABELS	= \
     --label "org.label-schema.version=${VERSION}" \
