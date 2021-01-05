@@ -43,12 +43,17 @@ EOF
 	# Hack to work-around inability to open /dev/stdout /dev/stderr
 	# directly when not root.
 	# See https://github.com/moby/moby/issues/6880
-	mkfifo -m 0600 /tmp/logpipe
-	cat <> /tmp/logpipe 1>&2 &
-        chown Debian-exim:Debian-exim /tmp/logpipe
-	ln -sf /tmp/logpipe /var/log/exim4/mainlog
-	ln -sf /tmp/logpipe /var/log/exim4/paniclog
-	ln -sf /tmp/logpipe /var/log/exim4/rejectlog
+	echolog () {
+	    rm -f "$1"
+	    mkfifo -m 0600 "$1"
+	    cat <> "$1" &
+            chown Debian-exim:Debian-exim "$1"
+	}
+	# mainlog & rejectlog to stdout
+	echolog /var/log/exim4/mainlog
+	ln -sf mainlog /var/log/exim4/rejectlog
+	# paniclog to stderr
+	echolog /var/log/exim4/paniclog 1>&2
     fi
 fi
 
