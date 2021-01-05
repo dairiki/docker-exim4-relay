@@ -1,5 +1,9 @@
 FROM debian:buster-slim
-LABEL maintainer="dairiki@dairiki.org"
+
+LABEL org.label-schema.name="exim4-relay"
+LABEL org.label-schema.vcs-url="https://git.dairiki.org/config/synology/"
+LABEL org.label-schema.schema-version="1.0"
+LABEL maintainer="Jeff Dairiki <dairiki@dairiki.org>"
 
 ENV ETC_MAILNAME smtp.dairiki.org
 ENV RELAY_NETS   172.16.0.0/12;192.168.0.0/16;10.0.0.0/8;fd00::/8
