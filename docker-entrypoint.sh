@@ -1,5 +1,8 @@
-#!/bin/bash
-set -e
+#!/bin/bash -e
+
+# Provide default CMD just in case it went missing
+[ -n "$*" ] || set -- exim -bdf -q10m
+
 
 if [ "$1" = 'exim' ]; then
     if [ -n "$ETC_MAILNAME" ]
@@ -34,6 +37,18 @@ EOF
         chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4 || :
         chown -R root:Debian-exim /etc/exim4/passwd.client || :
         chmod 0640 /etc/exim4/passwd.client || :
+
+	# Get exim logs to STDOUT/STDERR
+	#
+	# Hack to work-around inability to open /dev/stdout /dev/stderr
+	# directly when not root.
+	# See https://github.com/moby/moby/issues/6880
+	mkfifo -m 0600 /tmp/logpipe
+	cat <> /tmp/logpipe 1>&2 &
+        chown Debian-exim:Debian-exim /tmp/logpipe
+	ln -sf /tmp/logpipe /var/log/exim4/mainlog
+	ln -sf /tmp/logpipe /var/log/exim4/paniclog
+	ln -sf /tmp/logpipe /var/log/exim4/rejectlog
     fi
 fi
 
