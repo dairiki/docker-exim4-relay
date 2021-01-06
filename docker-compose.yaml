@@ -5,11 +5,11 @@ version: "2.4"
 
 services:
   exim4:
-    image: dairiki/exim4-relay:${TAG:-dev}
+    image: ${IMAGE:-exim4-relay}
     build:
       context: .
       labels:
-        org.label-schema.version: ${VERSION}
+        org.label-schema.version: ${GIT_TAG}
         org.label-schema.build-date: ${BUILD_DATE}
         org.label-schema.vcs-ref: ${VCS_REF}
     environment:

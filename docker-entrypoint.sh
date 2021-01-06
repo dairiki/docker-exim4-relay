@@ -1,4 +1,4 @@
-#!/bin/bash -ex
+#!/bin/bash -e
 
 # Some update-exim4.conf.conf defaults
 dc_eximconfig_configtype=satellite
