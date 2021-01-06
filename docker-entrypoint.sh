@@ -1,10 +1,14 @@
 #!/bin/bash -e
 
+# Default timezone
+: ${TZ:=UTC}
+
 # Some update-exim4.conf.conf defaults
 dc_eximconfig_configtype=satellite
 dc_use_split_config=true
 : ${dc_local_interfaces:=}
 : ${dc_hide_mailname:=true}
+
 
 update_exim4_conf () {
     if [ -n "$ETC_MAILNAME" ]; then
@@ -55,10 +59,19 @@ stream_exim4_logs () {
     create_log_fifo /var/log/exim4/paniclog 1>&2
 }
 
+config_timezone () {
+    if [ -f "/usr/share/zoneinfo/$TZ" ]; then
+	ln -sf "/usr/share/zoneinfo/$TZ" /etc/localtime
+	echo "$TZ" > /etc/timezone
+    fi
+}
+
 # Provide default CMD just in case it went missing
 [ -n "$*" ] || set -- exim -bdf -q10m
 
 if [[ $1 =~ ^exim4?$ ]]; then
+    config_timezone
+
     chown -R Debian-exim:Debian-exim /var/spool/exim4
 
     sed -i '/^[^#]/,$ d' /etc/exim4/passwd.client
