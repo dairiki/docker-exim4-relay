@@ -1,60 +1,74 @@
-#!/bin/bash -e
+#!/bin/bash -ex
+
+# Some update-exim4.conf.conf defaults
+dc_eximconfig_configtype=satellite
+dc_use_split_config=true
+: ${dc_local_interfaces:=}
+: ${dc_hide_mailname:=true}
+
+update_exim4_conf () {
+    if [ -n "$ETC_MAILNAME" ]; then
+	echo "$ETC_MAILNAME" > /etc/mailname
+    fi
+
+    rm -f /etc/exim4/conf.d/00_local_global-rcpt-ratelimit
+    if [ -n "$GLOBAL_RCPT_RATELIMIT" ]; then
+	# this triggers code in /etc/exim4/conf.d/01_local_ratelimit
+	echo "GLOBAL_RCPT_RATELIMIT = $GLOBAL_RCPT_RATELIMIT" \
+	     > /etc/exim4/conf.d/00_local_global-rcpt-ratelimit
+    fi
+
+    # Update the values of any dc_*='...' settings in exim4.conf.conf
+    # with the value of any environment variables of the same name.
+    local var args=()
+    for var in $(sed -nE 's/^(dc_[a-z_]*)=.*$/\1/p' \
+		     /etc/exim4/update-exim4.conf.conf)
+    do
+	if [ -v "${var}" ]; then
+	    args+=(-e "s|^${var}=.*|${var}='${!var}'|")
+	fi
+    done
+
+    sed -i "${args[@]}" /etc/exim4/update-exim4.conf.conf
+    update-exim4.conf -v
+}
+
+create_log_fifo () {
+    rm -f "$1"
+    mkfifo -m 0600 "$1"
+    cat <> "$1" &
+    chown Debian-exim:Debian-exim "$1"
+}
+
+stream_exim4_logs () {
+    # Get exim logs to STDOUT/STDERR
+    #
+    # Hack to work-around inability to open /dev/stdout /dev/stderr
+    # directly when not root.
+    # See https://github.com/moby/moby/issues/6880
+
+    # mainlog & rejectlog to stdout
+    create_log_fifo /var/log/exim4/mainlog
+    ln -sf mainlog /var/log/exim4/rejectlog
+
+    # paniclog to stderr
+    create_log_fifo /var/log/exim4/paniclog 1>&2
+}
 
 # Provide default CMD just in case it went missing
 [ -n "$*" ] || set -- exim -bdf -q10m
 
+if [[ $1 =~ ^exim4?$ ]]; then
+    chown -R Debian-exim:Debian-exim /var/spool/exim4
 
-if [ "$1" = 'exim' ]; then
-    if [ -n "$ETC_MAILNAME" ]
-    then
-        echo "$ETC_MAILNAME" > /etc/mailname
-    fi
+    sed -i '/^[^#]/,$ d' /etc/exim4/passwd.client
+    echo "$PASSWD_CLIENT" >> /etc/exim4/passwd.client
 
-    if [ -n "$RELAY_NETS" ]
-    then
-        sed -i "s!^\\(dc_relay_nets=\\).*!\\1'$RELAY_NETS'!" \
-            /etc/exim4/update-exim4.conf.conf
-    fi
+    echo "$HUBBED_HOSTS" > /etc/exim4/hubbed_hosts
 
-    if [ -n "$GLOBAL_RCPT_RATELIMIT" ]
-    then
-        cat > /etc/exim4/conf.d/main/01_local_global_ratelimit <<EOF
-# Rate limit the total number or email recipients processed by MTA
-acl_smtp_predata = \
-    defer ratelimit = ${GLOBAL_RCPT_RATELIMIT}/per_rcpt/xx-global\n\
-        message = 450 4.7.0 Sending rate limit exceeded\n\
-        log_message = Sending rate limit exceeed ($sender_rate/$sender_rate_period)\n\
-    accept
-EOF
-    else
-        rm -f /etc/exim4/conf.d/main/01_local_global_ratelimit
-    fi
+    update_exim4_conf
 
-    update-exim4.conf -v
-
-    if [ "$(id -u)" = '0' ]; then
-        mkdir -p /var/spool/exim4 /var/log/exim4 || :
-        chown -R Debian-exim:Debian-exim /var/spool/exim4 /var/log/exim4 || :
-        chown -R root:Debian-exim /etc/exim4/passwd.client || :
-        chmod 0640 /etc/exim4/passwd.client || :
-
-	# Get exim logs to STDOUT/STDERR
-	#
-	# Hack to work-around inability to open /dev/stdout /dev/stderr
-	# directly when not root.
-	# See https://github.com/moby/moby/issues/6880
-	echolog () {
-	    rm -f "$1"
-	    mkfifo -m 0600 "$1"
-	    cat <> "$1" &
-            chown Debian-exim:Debian-exim "$1"
-	}
-	# mainlog & rejectlog to stdout
-	echolog /var/log/exim4/mainlog
-	ln -sf mainlog /var/log/exim4/rejectlog
-	# paniclog to stderr
-	echolog /var/log/exim4/paniclog 1>&2
-    fi
+    stream_exim4_logs
 fi
 
 exec "$@"

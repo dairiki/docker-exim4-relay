@@ -1,6 +1,0 @@
-# Mail to dairiki.org can be delivered directly to MX
-# (The rest has to go trough MSA, which is rate limited.)
-# However, we can't seem to make outgoing connections to SMTP port 25 from home.
-# So route these to our external MSA.
-#dairiki.org: dairiki.org/MX bydns
-dairiki.org: smtp2.dairiki.org::587
