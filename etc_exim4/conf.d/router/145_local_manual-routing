@@ -1,0 +1,27 @@
+# router/145_local_manual_routes
+#################################
+
+# route specific domains manually.
+#
+# This works just like the hubbed_hosts, except that authentication
+# will be attempted when passing on mail to the next server for mail
+# routed here.  (Mail routed by hubbed_hosts gets delivered by the
+# remote_smtp transport.  Mail routed by this router gets delivered
+# by the remote_smtp_smarthost transport.)
+#
+# To actually authenticate, you will likely want to enter credentials
+# in the passwd.client file.
+#
+# See exim4-config_files(5) and spec.txt chapter 20.3 through 20.7 for
+# more detailed documentation on the hubbed_hosts router and the
+# passwd.client file.
+#
+manual_routes:
+  debug_print = "R: manual_routes for $domain"
+  driver = manualroute
+  domains = "${if exists{CONFDIR/manual_routes}\
+                   {partial-lsearch;CONFDIR/manual_routes}\
+              fail}"
+  same_domain_copy_routing = yes
+  route_data = ${lookup{$domain}partial-lsearch{CONFDIR/manual_routes}}
+  transport = remote_smtp_smarthost

@@ -1,45 +1,70 @@
-APP_NAME	= smtp-relay
-DOCKER_REPO	= dairiki/exim4-relay
+DOCKER_REPO = dairiki/exim4-relay
+DOCKER_TAG  = $(patsubst ${TAG_PFX}%,%,${GIT_DESC})
+IMAGE_NAME  = ${DOCKER_REPO}:${DOCKER_TAG}
 
-TAG_PFX    = ${APP_NAME}_
-GIT_TAG    := $(shell git describe --match="${TAG_PFX}*" \
-			--tags --dirty --always)
-TAG        := $(patsubst ${TAG_PFX}%,%,${GIT_TAG})
-DIRTY      := $(shell git diff --quiet || echo "-dirty")
-VCS_REF    := $(shell git rev-parse --short HEAD)${DIRTY}
-BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
-IMAGE	   := ${DOCKER_REPO}:${TAG}
+TAG_PFX    = smtp-relay_
+GIT_DESC  := $(shell git describe --match="${TAG_PFX}*" --tags --dirty --always)
+GIT_COMMIT = $(shell git rev-parse HEAD)
+GIT_DIRTY  = $(shell git diff --quiet || echo "-dirty")
 
-export GIT_TAG IMAGE VCS_REF BUILD_DATE
+SRC_FILES := $(filter-out .%,$(shell git ls-files))
 
-.PHONY: build assert-clean
+BUILD_ARGS = \
+    --build-arg SOURCE_VERSION="${GIT_DESC}" \
+    --build-arg SOURCE_COMMIT="${GIT_COMMIT}${GIT_DIRTY}" \
+    --build-arg BUILD_DATE="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+    --build-arg BUILDKIT_INLINE_CACHE=1
 
-build:
-	sudo -E docker-compose build $(BUILD_NC)
 
-publish: BUILD_NC = --no-cache --pull
+export SOURCE_VERSION SOURCE_COMMIT BUILD_DATE
 
-.PHONY: publish tag tag-latest tag-version assert-clean assert-tagged
+DOCKER_BUILDKIT   = 1
+BUILDKIT_PROGRESS = plain
+export DOCKER_BUILDKIT BUILDKIT_PROGRESS
 
-assert-clean:
+# https://www.gnu.org/prep/standards/html_node/Standard-Targets.html
+.PHONY: all install check mostlyclean clean distclean
+
+.PHONY: build test down publish tag assert-not-dirty
+
+all: build
+install: publish
+
+build: build.stamp
+build.stamp: ${SRC_FILES}
+# Build from scratch if build.stamp does not exist (e.g. after "make clean".)
+ifeq ($(realpath build.stamp),)
+# Just build the main image from scratch.
+# Otherwise the test image build totally from scratch, too (it doesn't
+# use the cached intermediate 'base' stage.)
+	docker build -t ${DOCKER_REPO} --target exim4-relay \
+		--no-cache --pull ${BUILD_ARGS} .
+endif
+	docker-compose build ${BUILD_ARGS}
+	@touch $@
+
+test: build check
+check:
+	docker-compose up sut
+
+mostlyclean down:
+	docker-compose down -v
+clean: mostlyclean
+	rm -f build.stamp
+distclean: clean
+
+
+.PHONY: publish tag assert-not-dirty
+
+publish: tag
+	docker push ${IMAGE_NAME}
+	docker push ${DOCKER_REPO}
+
+tag: assert-not-dirty build
+	docker tag ${DOCKER_REPO} ${IMAGE_NAME}
+
+assert-not-dirty:
 	@if ! git diff --quiet; then \
 	    echo "ERROR: source tree is dirty" 1>&2; \
 	    exit 1; \
 	fi
-
-assert-tagged: assert-clean
-	@if ! git diff --quiet; then \
-	    echo "ERROR: source tree is dirty" 1>&2; \
-	    exit 1; \
-	fi
-
-publish: publish-${TAG} publish-latest
-tag: tag-latest tag-${TAG}
-
-.SECONDARY: publish-latest publish-version
-publish-%: tag-%
-	sudo docker push ${DOCKER_REPO}:$*
-
-tag-${TAG}: assert-clean build
-tag-latest: tag-${TAG}
-	sudo docker tag ${IMAGE} ${DOCKER_REPO}:latest

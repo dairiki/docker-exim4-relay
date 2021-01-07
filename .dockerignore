@@ -1,1 +1,7 @@
-/exim4/
+Dockerfile
+Makefile
+*.env
+*.yml
+.*
+*~
+

@@ -1,0 +1,22 @@
+#!/bin/bash -e
+
+: ${CONF:=/etc/exim4/update-exim4.conf.conf}
+
+# Some update-exim4.conf.conf defaults
+dc_eximconfig_configtype=satellite
+dc_use_split_config=true
+: ${dc_local_interfaces:=}
+: ${dc_hide_mailname:=true}
+
+# Update the values of any dc_*='...' settings in exim4.conf.conf
+# with the value of any environment variables of the same name.
+args=()
+for setting in $(sed -nE 's/^(dc_[a-z_]*)=.*$/\1/p' "$CONF")
+do
+    if [[ -v $setting ]]; then
+	args+=(-e "s|^\(${setting}=\).*|\1'${!setting}'|")
+    fi
+done
+if (( ${#args[@]} )); then
+    sed -i "${args[@]}" "$CONF"
+fi

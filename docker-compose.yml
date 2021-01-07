@@ -1,0 +1,57 @@
+---
+# Use version 2 since version 3 does not support very rich network
+# configuration
+version: "2.4"
+
+services:
+
+  sut:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: test-msa
+      #cache_from:
+      #  - dairiki/exim4-relay
+    image: dairiki/exim4-relay:_test-msa
+      
+    depends_on:
+      - relay
+      - msa
+      - hub
+    volumes:
+      - msa-spool:/mailspool/msa:ro
+      - hub-spool:/mailspool/hub:ro
+      - ./test.sh:/test.sh:ro
+    entrypoint: /test.sh
+
+  relay:
+    # This is actually the image we are testing
+    image: dairiki/exim4-relay:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: exim4-relay
+    environment:
+      ETC_MAILNAME: relay.example.org
+      dc_other_hostnames: "*.example.org"
+      dc_readhost: example.org
+      dc_smarthost: "msa::587"
+      MANUAL_ROUTES: |
+        example.org: hub::587
+      PASSWD_CLIENT: |
+        msa:msa_user:password-of-msa_user
+        hub:hub_user:password-of-hub_user
+
+  msa:
+    image: dairiki/exim4-relay:_test-msa
+    volumes:
+      - msa-spool:/var/spool/exim4
+
+  hub:
+    image: dairiki/exim4-relay:_test-msa
+    volumes:
+      - hub-spool:/var/spool/exim4
+
+volumes:
+  msa-spool:
+  hub-spool:

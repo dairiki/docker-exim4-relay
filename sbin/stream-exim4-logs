@@ -1,0 +1,26 @@
+#!/bin/bash -e
+#
+# Get exim logs to STDOUT/STDERR
+#
+# Hack to work-around inability to open /dev/stdout /dev/stderr
+# directly when not root.
+#
+# See https://github.com/moby/moby/issues/6880
+
+create_log_fifo () {
+    rm -f "$1"
+    mkfifo -m 0600 "$1"
+    cat <> "$1" &
+    chown Debian-exim:Debian-exim "$1"
+}
+
+cd /var/log/exim4
+
+# mainlog & rejectlog to stdout
+create_log_fifo mainlog
+ln -sf mainlog rejectlog
+    
+# paniclog to stderr
+create_log_fifo paniclog 1>&2
+
+[[ -z $* ]] || exec "$@"
