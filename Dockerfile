@@ -6,6 +6,10 @@ LABEL org.label-schema.schema-version="1.0"
 LABEL maintainer="Jeff Dairiki <dairiki@dairiki.org>"
 
 # Tweakables
+
+# Domains matching dc_other_hostnames will be rewritten to
+# dc_readhost in mail headers (env from, recipients, senders).
+ENV dc_other_hostnames=*.example.org
 ENV dc_readhost=example.org
 ENV dc_relay_nets=172.16.0.0/12
 ENV dc_smarthost=smtp.example.org::587
