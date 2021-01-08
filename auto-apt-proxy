@@ -1,0 +1,195 @@
+#!/bin/sh
+
+# This is from the beta "parallel-detection" branch.
+#
+# Downloaded from
+# https://salsa.debian.org/debian/auto-apt-proxy/-/blob/parallel-detection/auto-apt-proxy
+#
+# This particular version is from commit 9b19d8cb
+# https://salsa.debian.org/debian/auto-apt-proxy.git#9b19d8cb
+
+
+# auto-apt-proxy - automatic detector of common APT proxy settings
+# Copyright (C) 2016-2020 Antonio Terceiro
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+set -e
+
+tmpfile=$(mktemp)
+cleanup() {
+  rm -f "$tmpfile"
+}
+trap cleanup INT EXIT TERM
+
+hit() {
+  timeout 5 /usr/lib/apt/apt-helper \
+    -o Acquire::http::Proxy=DIRECT \
+    download-file "$@" "$tmpfile" 2>&1
+}
+
+uid=$(id -u)
+cache_dir=${TMPDIR:-/tmp}/.auto-apt-proxy-${uid}
+if [ -d "${cache_dir}" ]; then
+  # require existing cache dir to be owned by the current user and have the
+  # correct permissions
+  owner="$(stat --format=%u:%f "${cache_dir}")"
+  if [ "${uid}:41c0" = "${cache_dir}" ]; then
+    echo "E: insecure cache dir ${uid}"
+    exit 1
+  fi
+else
+  mkdir -m 0700 "${cache_dir}"
+fi
+cache_ttl=60 # seconds
+cache() {
+  local cache_file="${cache_dir}/cache"
+  local lock_file="${cache_dir}/lock"
+  local cache_age
+  (
+    flock 9
+
+    # invalidate stale cache
+    if [ -f "${cache_file}" ]; then
+      ts=$(stat --format=%Y "${cache_file}")
+      now=$(date +%s)
+      cache_age=$((now - ts))
+      if [ "${cache_age}" -gt "${cache_ttl}" ]; then
+        rm -f "${cache_file}"
+      fi
+    fi
+
+    if [ -f "${cache_file}" ]; then
+      # read cache
+      if [ -s "${cache_file}" ]; then
+        cat "${cache_file}"
+      fi
+    else
+      # update cache
+      "$@" > "$cache_file" || true
+      cat "${cache_file}"
+    fi
+  ) 9> "${lock_file}"
+}
+
+detect_apt_cacher() {
+  local ip="$1"
+  local proxy=http://$ip:3142
+  hit -o "Acquire::http::Proxy::${ip}=DIRECT" "$proxy" >/dev/null 2>&1 || true;
+  if [ -s "$tmpfile" ] && grep -q -i '<title>Apt-cacher' "$tmpfile"; then
+    echo "$proxy"
+    return 0
+  fi
+  return 1
+}
+
+detect_apt_cacher_ng() {
+  local ip="$1"
+  local proxy=http://$ip:3142
+  if hit -o "Acquire::http::Proxy::${ip}=DIRECT" "$proxy" | grep -q -i '406.*usage.information'; then
+    echo "$proxy"
+    return 0
+  fi
+  return 1
+}
+
+detect_approx() {
+  local ip="$1"
+  local proxy=http://$ip:9999
+  hit -o "Acquire::http::Proxy::${ip}=DIRECT" "$proxy" >/dev/null 2>&1 || true;
+  if [ -s "$tmpfile" ] && grep -q -i '<title>approx\s*server</title>' "$tmpfile"; then
+    echo "$proxy"
+    return 0
+  fi
+  return 1
+}
+
+# NOTE: This does NOT check MDNS/DNS-SD (avahi/zeroconf/bonjour) records.
+#       If you want that, use squid-deb-proxy-client, which depends on avahi.
+#
+# FIXME: if there are multiple matching SRV records, we should make a
+#        weighted random choice from the one(s) with the highest priority.
+#        For now, we make a uniformly random choice from all records (shuf + exit).
+#
+# NOTE: We don't check that it "looks like" a known apt proxy (hit + grep -q).
+#       This is because
+#        1) the other detectors are just GUESSING hosts and ports.
+#           You might accidentally run a non-apt-proxy on 127.0.0.1:9999, but
+#           you can't accidentally create an _apt_proxy SRV record!
+#        2) refactoring the grep -q's out of detect_* is tedious and boring.
+#        3) there's no grep -q for squid, which I want to use. ;-)
+#
+# NOTE: no need for if/then/else and return 0/1 because:
+#        * if awk matches something, it prints it and exits zero.
+#        * if hostname or apt-helper fail, awk matches nothing, so exits non-zero.
+#        * set -e ignores errors from apt-helper (no pipefail) and hostname (no ???).
+detect_DNS_SRV_record() {
+  /usr/lib/apt/apt-helper srv-lookup _apt_proxy._tcp."$(hostname --domain)" 2>/dev/null |
+  shuf |
+  awk '/^[^#]/{print "http://" $1 ":" $4;found=1;exit}END{exit !found}'
+}
+
+__detect__() {
+  # If a SRV record is found, use it and guess no further.
+  detect_DNS_SRV_record && return 0
+
+  if command -v ip >/dev/null; then
+    gateway=$(ip route | awk '/default/ { print($3) }')
+  elif busybox ip >/dev/null 2>&1; then
+    gateway=$(busybox ip route | awk '/default/ { print($3) }')
+  else
+    gateway=''
+  fi
+
+  # consider a user-defined host as well, quick check whether it's configured
+  explicit_proxy=$(getent hosts apt-proxy | awk '/[:blank:]/ { print($1) }' )
+
+  output="$(mktemp -d)"
+  for ip in $explicit_proxy 127.0.0.1 $gateway; do
+    detect_apt_cacher_ng "$ip" > "${output}/apt-cacher-ng-${ip}.txt" &
+    detect_approx "$ip"        > "${output}/approx-${ip}.txt"        &
+    detect_apt_cacher "$ip"    > "${output}/apt-cacher-${ip}.txt"    &
+  done
+  wait
+  find "${output}/" -type f -exec cat '{}' ';' | sort -V | head -n 1
+  rm -rf "${output}"
+  return 0
+}
+
+detect() {
+  if [ -z "${AUTO_APT_PROXY_NO_CACHE:-}" ]; then
+    cache __detect__
+  else
+    __detect__
+  fi
+}
+
+if [ $# -eq 0 ]; then
+  detect
+else
+  case "$1" in
+    ftp://*|http://*|https://*|file://*)
+      # APT mode: first argument is an URI
+      detect
+      ;;
+    *)
+      # wrapper mode: execute command using the detected proxy
+      proxy=$(detect || true)
+      if [ -n "$proxy" ]; then
+        export http_proxy="$proxy"
+        export HTTP_PROXY="$proxy"
+      fi
+      exec "$@"
+  esac
+fi

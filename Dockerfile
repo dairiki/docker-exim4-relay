@@ -4,9 +4,13 @@ ARG DEBIAN_TAG=buster-20201209-slim
 
 FROM debian:${DEBIAN_TAG} AS base
 
+COPY auto-apt-proxy /usr/local/bin/
 RUN set -ux && \
-  apt-get update && \
-  apt-get install -y --no-install-recommends \
+  auto-apt-proxy apt-get update && \
+  auto-apt-proxy apt-get install -y --no-install-recommends \
+        # auto-apt-proxy works better with busybox, which it can use
+        # to find the default gateway
+	busybox \
 	exim4-daemon-light \
 	# NB: scripts such as exiqgrep require perl-modules
 	#perl-modules \
@@ -31,7 +35,7 @@ FROM base AS test-msa
 # Install swaks which is used in the "sut" test service
 RUN set -ux && \
   apt-get update && \
-  apt-get install -y --no-install-recommends swaks && \
+  auto-apt-proxy apt-get install -y --no-install-recommends swaks && \
   apt-get clean && \
   rm -rf /var/lib/apt/lists/*
 
