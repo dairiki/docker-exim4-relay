@@ -2,7 +2,7 @@ DOCKER_REPO = dairiki/exim4-relay
 DOCKER_TAG  = $(patsubst ${TAG_PFX}%,%,${GIT_DESC})
 IMAGE_NAME  = ${DOCKER_REPO}:${DOCKER_TAG}
 
-TAG_PFX    = smtp-relay_
+TAG_PFX    = v
 GIT_DESC  := $(shell git describe --match="${TAG_PFX}*" --tags --dirty --always)
 GIT_COMMIT = $(shell git rev-parse HEAD)
 GIT_DIRTY  = $(shell git diff --quiet || echo "-dirty")
