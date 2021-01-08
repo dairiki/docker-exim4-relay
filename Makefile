@@ -25,7 +25,7 @@ export DOCKER_BUILDKIT BUILDKIT_PROGRESS
 # https://www.gnu.org/prep/standards/html_node/Standard-Targets.html
 .PHONY: all install check mostlyclean clean distclean
 
-.PHONY: build test down publish tag assert-not-dirty
+.PHONY: build build-tests test down publish tag push assert-not-dirty
 
 all: build
 install: publish
@@ -42,27 +42,37 @@ build.stamp: ${SRC_FILES}
 # to speed up builds.  Let's just build manually for now.
 	docker build -t ${DOCKER_REPO} --target exim4-relay \
 		${BUILD_NC} ${BUILD_ARGS} .
+	@touch $@
+
+build-tests: build-tests.stamp
+build-tests.stamp: build.stamp
 	docker build -t ${DOCKER_REPO}:_test-msa --target test-msa \
 		${BUILD_ARGS} .
 	@touch $@
 
-test: build check
+test: build-tests check
 check:
 	docker-compose up sut
-
-mostlyclean down:
+down:
 	docker-compose down -v
+
+mostlyclean: down
 clean: mostlyclean
-	rm -f build.stamp
+	rm -f build.stamp build-tests.stamp
 distclean: clean
 
 
 .PHONY: publish tag assert-not-dirty
 
-publish: tag
+# push tagged image
+publish: tag push
 	docker push ${IMAGE_NAME}
+
+# push :latest
+push: build
 	docker push ${DOCKER_REPO}
 
+# tag image
 tag: assert-not-dirty build
 	docker tag ${DOCKER_REPO} ${IMAGE_NAME}
 
