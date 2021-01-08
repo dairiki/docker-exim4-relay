@@ -30,13 +30,13 @@ export DOCKER_BUILDKIT BUILDKIT_PROGRESS
 all: build
 install: publish
 
-# Build from scratch if build.stamp does not exist (e.g. after "make clean".)
-ifeq ($(realpath build.stamp),)
+# Build from scratch if stamp.build does not exist (e.g. after "make clean".)
+ifeq ($(realpath stamp.build),)
 BUILD_NC = --no-cache --pull
 endif
 
-build: build.stamp
-build.stamp: ${SRC_FILES}
+build: stamp.build
+stamp.build: ${SRC_FILES}
 #	docker-compose build ${BUILD_NC }${BUILD_ARGS}
 # My version of docker-compose (1.25.0) doesn't seem to fully use BuildKit
 # to speed up builds.  Let's just build manually for now.
@@ -44,8 +44,8 @@ build.stamp: ${SRC_FILES}
 		${BUILD_NC} ${BUILD_ARGS} .
 	@touch $@
 
-build-tests: build-tests.stamp
-build-tests.stamp: build.stamp
+build-tests: stamp.build-tests
+stamp.build-tests: stamp.build
 	docker build -t ${DOCKER_REPO}:_test-msa --target test-msa \
 		${BUILD_ARGS} .
 	@touch $@
@@ -58,7 +58,7 @@ down:
 
 mostlyclean: down
 clean: mostlyclean
-	rm -f build.stamp build-tests.stamp
+	rm -f stamp.build stamp.build-tests
 distclean: clean
 
 
