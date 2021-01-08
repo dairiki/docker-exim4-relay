@@ -19,7 +19,7 @@ BUILD_ARGS = \
 export SOURCE_VERSION SOURCE_COMMIT BUILD_DATE
 
 DOCKER_BUILDKIT   = 1
-BUILDKIT_PROGRESS = plain
+#BUILDKIT_PROGRESS = plain
 export DOCKER_BUILDKIT BUILDKIT_PROGRESS
 
 # https://www.gnu.org/prep/standards/html_node/Standard-Targets.html
@@ -30,17 +30,20 @@ export DOCKER_BUILDKIT BUILDKIT_PROGRESS
 all: build
 install: publish
 
-build: build.stamp
-build.stamp: ${SRC_FILES}
 # Build from scratch if build.stamp does not exist (e.g. after "make clean".)
 ifeq ($(realpath build.stamp),)
-# Just build the main image from scratch.
-# Otherwise the test image build totally from scratch, too (it doesn't
-# use the cached intermediate 'base' stage.)
-	docker build -t ${DOCKER_REPO} --target exim4-relay \
-		--no-cache --pull ${BUILD_ARGS} .
+BUILD_NC = --no-cache --pull
 endif
-	docker-compose build ${BUILD_ARGS}
+
+build: build.stamp
+build.stamp: ${SRC_FILES}
+#	docker-compose build ${BUILD_NC }${BUILD_ARGS}
+# My version of docker-compose (1.25.0) doesn't seem to fully use BuildKit
+# to speed up builds.  Let's just build manually for now.
+	docker build -t ${DOCKER_REPO} --target exim4-relay \
+		${BUILD_NC} ${BUILD_ARGS} .
+	docker build -t ${DOCKER_REPO}:_test-msa --target test-msa \
+		${BUILD_ARGS} .
 	@touch $@
 
 test: build check
