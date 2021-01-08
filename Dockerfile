@@ -65,7 +65,7 @@ COPY entrypoint.sh /usr/local/sbin/
 ENV \
   dc_other_hostnames=*.example.org \
   dc_readhost=example.org \
-  dc_relay_nets=172.16.0.0/12 \
+  dc_relay_nets=10.0.0.0/8;172.16.0.0/12;192.168.0.0/16 \
   dc_smarthost=smtp.example.org::587 \
   ETC_MAILNAME= \
   GLOBAL_RCPT_RATELIMIT=100/1h \
