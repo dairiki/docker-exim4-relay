@@ -86,3 +86,6 @@ LABEL \
   org.label-schema.vcs-ref="$SOURCE_COMMIT" \
   org.label-schema.build-date="$BUILD_DATE" \
   org.label-schema.schema-version="1.0"
+
+# FIXME: better HEALTHCHECK
+# It should check for frozen and stale messages
