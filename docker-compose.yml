@@ -17,10 +17,12 @@ services:
       - msa
       - hub
     volumes:
-      - msa-spool:/mailspool/msa:ro
-      - hub-spool:/mailspool/hub:ro
-      - ./test.sh:/test.sh:ro
-    entrypoint: /test.sh
+      - msa-spool:/spooldirs/msa:ro
+      - hub-spool:/spooldirs/hub:ro
+      - ./tests:/tests:ro
+    entrypoint: /tests/entrypoint.sh
+    environment:
+      SUT_VERBOSE: "$SUT_VERBOSE"
 
   relay:
     # This is actually the image we are testing

@@ -1,0 +1,16 @@
+#!/bin/bash -e
+
+here="${0%/*}"
+. "${here}/lib.sh"
+
+# Send message.
+#
+# Since the recipient does not match anything listing in MANUAL_ROUTES,
+# this should be routed to our default outgoing MTA (set by dc_smarthost).
+#
+
+recipient=rcpt-$(randhex)@example.net
+
+swaks -s relay -f me@example.org -t "$recipient" >&3
+
+wait_for_mail_at_host "$recipient" msa

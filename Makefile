@@ -7,7 +7,7 @@ GIT_DESC  := $(shell git describe --match="${TAG_PFX}*" --tags --dirty --always)
 GIT_COMMIT = $(shell git rev-parse HEAD)
 GIT_DIRTY  = $(shell git diff --quiet || echo "-dirty")
 
-SRC_FILES := $(filter-out .%,$(shell git ls-files))
+SRC_FILES := $(filter-out .% tests/% %.yml %.env,$(shell git ls-files))
 
 BUILD_ARGS = \
     --build-arg SOURCE_VERSION="${GIT_DESC}" \

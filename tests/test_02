@@ -1,0 +1,16 @@
+#!/bin/bash -e
+
+here="${0%/*}"
+. "${here}/lib.sh"
+
+# Send manually routed message.
+#
+# This recipient should match an entry in MANUAL_ROUTES, and so
+# should be delivered to the alternate MTA.
+#
+
+recipient=rcpt-$(randhex)@example.org
+
+swaks -s relay -f me@example.org -t "$recipient" >&3
+
+wait_for_mail_at_host "$recipient" hub
