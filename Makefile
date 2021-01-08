@@ -25,15 +25,10 @@ export DOCKER_BUILDKIT BUILDKIT_PROGRESS
 # https://www.gnu.org/prep/standards/html_node/Standard-Targets.html
 .PHONY: all install check mostlyclean clean distclean
 
-.PHONY: build build-tests test down publish tag push assert-not-dirty
+.PHONY: help build build-tests test down publish tag push assert-not-dirty
 
 all: build
 install: publish
-
-# Build from scratch if stamp.build does not exist (e.g. after "make clean".)
-ifeq ($(realpath stamp.build),)
-BUILD_NC = --no-cache --pull
-endif
 
 build: stamp.build
 stamp.build: ${SRC_FILES}
@@ -47,8 +42,14 @@ stamp.build: ${SRC_FILES}
 build-tests: stamp.build-tests
 stamp.build-tests: stamp.build
 	docker build -t ${DOCKER_REPO}:_test-msa --target test-msa \
-		${BUILD_ARGS} .
+		${BUILD_NC} ${BUILD_ARGS} .
 	@touch $@
+
+# Target to force full re-pull adn rebuild without using build-cache
+.PHONY: build-nc build-tests-nc
+build-nc build-tests-nc:
+	rm -f stamp.build stamp.build-tests 
+	$(MAKE) BUILD_NC="--no-cache --pull" $(patsubst %-nc,%,$@) 
 
 test: build-tests check
 check:
