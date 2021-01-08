@@ -12,8 +12,7 @@ SRC_FILES := $(filter-out .%,$(shell git ls-files))
 BUILD_ARGS = \
     --build-arg SOURCE_VERSION="${GIT_DESC}" \
     --build-arg SOURCE_COMMIT="${GIT_COMMIT}${GIT_DIRTY}" \
-    --build-arg BUILD_DATE="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')" \
-    --build-arg BUILDKIT_INLINE_CACHE=1
+    --build-arg BUILD_DATE="$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')"
 
 
 export SOURCE_VERSION SOURCE_COMMIT BUILD_DATE

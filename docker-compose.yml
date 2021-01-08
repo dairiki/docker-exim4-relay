@@ -10,8 +10,6 @@ services:
       context: .
       dockerfile: Dockerfile
       target: test-msa
-      #cache_from:
-      #  - dairiki/exim4-relay
     image: dairiki/exim4-relay:_test-msa
       
     depends_on:
