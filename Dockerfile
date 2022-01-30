@@ -1,6 +1,6 @@
 ## -*- docker-image-name: "dairiki/exim4-relay" -*-
 
-ARG DEBIAN_TAG=buster-20211220-slim
+ARG DEBIAN_TAG=buster-20220125-slim
 
 FROM debian:${DEBIAN_TAG} AS base
 
